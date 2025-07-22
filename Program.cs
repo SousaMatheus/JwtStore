@@ -1,7 +1,9 @@
 using AspNetJWT.Configuration;
+using AspNetJWT.Extensions;
 using AspNetJWT.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -23,7 +25,10 @@ builder.Services.AddAuthentication(options =>
         };
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(x =>
+{
+    x.AddPolicy("admin", p => p.RequireRole("admin"));
+});
 
 var app = builder.Build();
 
@@ -41,7 +46,17 @@ app.MapGet("/login", (TokenService service) =>
        new[] { "student", "premium" }));
 });
 
-app.MapGet("/restricted", () =>
-"You have access").RequireAuthorization();
+app.MapGet("/restricted", (ClaimsPrincipal user) => new
+{
+    id = user.GetUserId(),
+    name = user.GetUserName(),
+    givenName = user.GetUserGivenName(),
+    email = user.GetUserEmail(),
+    image = user.GetUserImage(),
+}
+).RequireAuthorization();
+
+app.MapGet("/admin", () =>
+"You have access").RequireAuthorization("admin");
 
 app.Run();
